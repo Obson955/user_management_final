@@ -13,6 +13,12 @@ logger = logging.getLogger(__name__)
 class RoleService:
     """
     Service class for managing user roles and role change history.
+    
+    This service provides methods for:
+    - Changing user roles and recording the history
+    - Retrieving role change history
+    - Getting available roles
+    - Validating role changes based on business rules
     """
     
     @classmethod
@@ -40,14 +46,14 @@ class RoleService:
             user = await session.get(User, user_id)
             if not user:
                 error_msg = f"User with ID {user_id} not found"
-                logger.error(error_msg)
+                logger.error(f"[RoleService] {error_msg}")
                 return {"error": error_msg, "status": "not_found"}
                 
             # Get the user who is making the change
             changed_by = await session.get(User, changed_by_id)
             if not changed_by:
                 error_msg = f"User with ID {changed_by_id} not found"
-                logger.error(error_msg)
+                logger.error(f"[RoleService] {error_msg}")
                 return {"error": error_msg, "status": "not_found"}
                 
             # Check if the new role is valid
@@ -78,7 +84,7 @@ class RoleService:
             await session.commit()
             
             # Log the successful role change for audit purposes
-            logger.info(f"Role change successful: User {user.email} (ID: {user_id}) role changed from {previous_role.name} to {new_role_enum.name} by {changed_by.email} (ID: {changed_by_id}). Reason: {reason}")
+            logger.info(f"[RoleService] Role change successful: User {user.email} (ID: {user_id}) role changed from {previous_role.name} to {new_role_enum.name} by {changed_by.email} (ID: {changed_by_id}). Reason: {reason or 'No reason provided'}")
             
             # Prepare the role change data
             role_change_data = {
@@ -152,7 +158,7 @@ class RoleService:
             return history_records, total_count
             
         except Exception as e:
-            logger.error(f"Error getting role change history: {e}")
+            logger.error(f"[RoleService] Error getting role change history: {e}, user_id={user_id if 'user_id' in locals() else 'N/A'}, skip={skip}, limit={limit}")
             return [], 0
     
     @classmethod
@@ -160,14 +166,18 @@ class RoleService:
         """
         Get a list of all available roles in the system.
         
+        This method returns all possible roles defined in the UserRole enum.
+        It can be used to populate dropdown menus or for validation.
+        
         Returns:
-            A list of role names
+            A list of role names as strings
         """
+        # Use a list comprehension to iterate over the UserRole enum and extract the role names
         return [role.name for role in UserRole]
     
     @classmethod
     async def validate_role_change(cls, 
-                                  session: AsyncSession, 
+                                  session: AsyncSession,
                                   user_id: UUID, 
                                   new_role: str, 
                                   changed_by_id: UUID) -> Tuple[bool, str]:
@@ -221,5 +231,5 @@ class RoleService:
             return True, "Role change is valid"
             
         except Exception as e:
-            logger.error(f"Error validating role change: {e}")
+            logger.error(f"[RoleService] Error validating role change: {e}, user_id={user_id}, new_role={new_role}, changed_by_id={changed_by_id}")
             return False, f"Error validating role change: {str(e)}"
