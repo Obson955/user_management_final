@@ -1,7 +1,8 @@
 from builtins import str
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import Optional, List
 from datetime import datetime
+import re
 import uuid
 from app.models.user_model import UserRole
 from app.schemas.pagination_schema import PaginationLink
@@ -11,7 +12,21 @@ class RoleChangeRequest(BaseModel):
     Schema for requesting a role change for a user.
     """
     new_role: UserRole = Field(..., description="The new role to assign to the user")
-    reason: Optional[str] = Field(None, description="Reason for the role change")
+    reason: Optional[str] = Field(None, description="Reason for the role change", max_length=255)
+    
+    @validator('reason')
+    def validate_reason(cls, v):
+        if v is not None:
+            # Check for minimum length
+            if len(v) < 5:
+                raise ValueError('Reason must be at least 5 characters long')
+            
+            # Check for inappropriate content (simple example)
+            inappropriate_patterns = ['profanity', 'offensive', 'inappropriate']
+            for pattern in inappropriate_patterns:
+                if pattern in v.lower():
+                    raise ValueError(f'Reason contains inappropriate content')
+        return v
 
 class RoleChangeResponse(BaseModel):
     """
@@ -61,3 +76,4 @@ class AvailableRolesResponse(BaseModel):
     
     class Config:
         from_attributes = True
+

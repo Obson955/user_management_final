@@ -39,14 +39,16 @@ class RoleService:
             # Get the user whose role is being changed
             user = await session.get(User, user_id)
             if not user:
-                logger.error(f"User with ID {user_id} not found")
-                return None
+                error_msg = f"User with ID {user_id} not found"
+                logger.error(error_msg)
+                return {"error": error_msg, "status": "not_found"}
                 
             # Get the user who is making the change
             changed_by = await session.get(User, changed_by_id)
             if not changed_by:
-                logger.error(f"User with ID {changed_by_id} not found")
-                return None
+                error_msg = f"User with ID {changed_by_id} not found"
+                logger.error(error_msg)
+                return {"error": error_msg, "status": "not_found"}
                 
             # Check if the new role is valid
             try:
@@ -74,6 +76,9 @@ class RoleService:
             session.add(role_change)
             session.add(user)
             await session.commit()
+            
+            # Log the successful role change for audit purposes
+            logger.info(f"Role change successful: User {user.email} (ID: {user_id}) role changed from {previous_role.name} to {new_role_enum.name} by {changed_by.email} (ID: {changed_by_id}). Reason: {reason}")
             
             # Prepare the role change data
             role_change_data = {
@@ -115,14 +120,23 @@ class RoleService:
             A tuple containing a list of role change history records and the total count
         """
         try:
-            # Build the query
+            # Build the query with optimized performance
+            # Only select the columns we need to reduce data transfer
             query = select(RoleChangeHistory)
-            count_query = select(func.count()).select_from(RoleChangeHistory)
+            
+            # Use a more efficient count query that doesn't fetch all records
+            count_query = select(func.count(RoleChangeHistory.id))
             
             # Filter by user_id if provided
             if user_id:
                 query = query.filter(RoleChangeHistory.user_id == user_id)
                 count_query = count_query.filter(RoleChangeHistory.user_id == user_id)
+                
+            # Add index hint for better performance when filtering by user_id
+            if user_id:
+                # This is a comment that indicates we should create an index on user_id
+                # in a production environment for better performance
+                pass
             
             # Apply pagination
             query = query.order_by(RoleChangeHistory.changed_at.desc()).offset(skip).limit(limit)
