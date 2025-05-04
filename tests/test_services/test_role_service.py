@@ -196,18 +196,63 @@ async def test_get_role_change_history(db_session, user, admin_user):
 
 # Test event publishing when role is changed
 async def test_role_change_event_publishing(db_session, user, admin_user):
-    # Since we simplified the event service to just log events,
-    # we'll just verify that the role change operation succeeds
-    result = await RoleService.change_user_role(
-        db_session,
-        user.id,
-        UserRole.MANAGER,
-        admin_user.id,
-        "Testing event publishing"
-    )
+    # Mock the EventService.publish method
+    original_publish = EventService.publish
+    publish_called = False
     
-    # Verify the result contains the expected data
-    assert result is not None
-    assert result["user_id"] == user.id
-    assert result["new_role"] == UserRole.MANAGER.name
-    assert result["reason"] == "Testing event publishing"
+    def mock_publish(event_type, data):
+        nonlocal publish_called
+        publish_called = True
+        assert event_type == EventTypes.USER_ROLE_CHANGED
+        assert data["user_id"] == user.id
+        assert data["previous_role"] == user.role.name
+        assert data["new_role"] == UserRole.MANAGER.name
+        assert data["changed_by"] == admin_user.email
+    
+    EventService.publish = mock_publish
+    
+    try:
+        # Change the user's role
+        await RoleService.change_user_role(db_session, user.id, UserRole.MANAGER, admin_user.id, "Testing event publishing")
+        assert publish_called, "EventService.publish was not called"
+    finally:
+        # Restore the original method
+        EventService.publish = original_publish
+
+# Test role change succeeds even when event publishing fails
+async def test_role_change_with_event_publishing_failure(db_session, user, admin_user):
+    # Make sure the user has a different role than what we're changing to
+    user.role = UserRole.AUTHENTICATED
+    db_session.add(user)
+    await db_session.commit()
+    
+    # Mock the EventService.publish method to raise an exception
+    original_publish = EventService.publish
+    
+    def mock_publish_with_error(event_type, data):
+        raise Exception("Simulated event publishing failure")
+    
+    EventService.publish = mock_publish_with_error
+    
+    try:
+        # Change the user's role - this should succeed despite the event publishing failure
+        result = await RoleService.change_user_role(
+            db_session, 
+            user.id, 
+            UserRole.MANAGER, 
+            admin_user.id, 
+            "Testing event publishing failure"
+        )
+        
+        # Verify the role change was successful
+        assert result is not None
+        assert result["user_id"] == user.id
+        assert result["previous_role"] == UserRole.AUTHENTICATED.name
+        assert result["new_role"] == UserRole.MANAGER.name
+        
+        # Verify the user's role was updated in the database
+        updated_user = await db_session.get(User, user.id)
+        assert updated_user.role == UserRole.MANAGER
+    finally:
+        # Restore the original method
+        EventService.publish = original_publish
