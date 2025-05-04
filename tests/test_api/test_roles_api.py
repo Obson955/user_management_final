@@ -29,7 +29,12 @@ async def test_get_available_roles_unauthorized(async_client, user_token):
     assert response.status_code == 403
 
 # Test changing a user's role as admin
-async def test_change_user_role_as_admin(async_client, verified_user, admin_token):
+async def test_change_user_role_as_admin(async_client, verified_user, admin_token, db_session):
+    # First, ensure the user has AUTHENTICATED role
+    verified_user.role = UserRole.AUTHENTICATED
+    db_session.add(verified_user)
+    await db_session.commit()
+    
     headers = {"Authorization": f"Bearer {admin_token}"}
     role_change_data = {
         "new_role": "MANAGER",
@@ -45,7 +50,7 @@ async def test_change_user_role_as_admin(async_client, verified_user, admin_toke
     assert response.status_code == 200
     data = response.json()
     assert data["user_id"] == str(verified_user.id)
-    assert data["previous_role"] == verified_user.role.name
+    assert data["previous_role"] == "AUTHENTICATED"
     assert data["new_role"] == "MANAGER"
     assert data["reason"] == "Promotion for good performance"
 

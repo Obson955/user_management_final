@@ -4,7 +4,7 @@ from typing import Optional, List
 from datetime import datetime
 import uuid
 from app.models.user_model import UserRole
-from app.schemas.link_schema import Link
+from app.schemas.pagination_schema import PaginationLink
 
 class RoleChangeRequest(BaseModel):
     """
@@ -48,7 +48,7 @@ class RoleHistoryResponse(BaseModel):
     """
     items: List[RoleHistoryEntry]
     total: int
-    links: Optional[List[Link]] = None
+    links: Optional[List[PaginationLink]] = None
     
     class Config:
         from_attributes = True

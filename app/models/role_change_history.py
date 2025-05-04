@@ -32,6 +32,10 @@ class RoleChangeHistory(Base):
     new_role: Mapped[str] = Column(String(50), nullable=False)
     changed_at: Mapped[datetime] = Column(DateTime(timezone=True), server_default=func.now())
     reason: Mapped[str] = Column(String(255), nullable=True)
+    
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id], back_populates="role_changes")
+    changed_by = relationship("User", foreign_keys=[changed_by_id])
 
     def __repr__(self) -> str:
         """Provides a readable representation of a role change record."""
