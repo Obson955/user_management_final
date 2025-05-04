@@ -14,7 +14,7 @@ def create_link(rel: str, href: str, method: str = "GET", action: str = None) ->
 def create_pagination_link(rel: str, base_url: str, params: dict) -> PaginationLink:
     # Ensure parameters are added in a specific order
     query_string = f"skip={params['skip']}&limit={params['limit']}"
-    return PaginationLink(rel=rel, href=f"{base_url}?{query_string}")
+    return PaginationLink(rel=rel, href=f"{base_url}?{query_string}", action="GET", type="application/json")
 
 def create_user_links(user_id: UUID, request: Request) -> List[Link]:
     """
