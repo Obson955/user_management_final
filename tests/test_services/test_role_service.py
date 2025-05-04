@@ -155,6 +155,19 @@ async def test_validate_role_change_last_admin(db_session, admin_user):
     assert is_valid is False
     assert "Cannot change the role of the last administrator" in message
 
+# Test role change validation - invalid role string
+async def test_validate_role_change_invalid_role(db_session, user, admin_user):
+    # Try to change to a non-existent role
+    is_valid, message = await RoleService.validate_role_change(
+        db_session,
+        user.id,
+        "SUPER_USER",  # This role doesn't exist
+        admin_user.id
+    )
+    
+    assert is_valid is False
+    assert "Invalid role: SUPER_USER" in message
+
 # Test getting role change history
 async def test_get_role_change_history(db_session, user, admin_user):
     # Create a role change to have some history
