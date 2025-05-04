@@ -72,7 +72,11 @@ async def test_change_user_role_nonexistent_user(db_session, admin_user):
         admin_user.id
     )
     
-    assert result is None
+    assert result is not None
+    assert "error" in result
+    assert "status" in result
+    assert result["status"] == "not_found"
+    assert f"User with ID {non_existent_id} not found" in result["error"]
 
 # Test changing a user's role with non-existent admin
 async def test_change_user_role_nonexistent_admin(db_session, user):
@@ -85,7 +89,11 @@ async def test_change_user_role_nonexistent_admin(db_session, user):
         non_existent_id
     )
     
-    assert result is None
+    assert result is not None
+    assert "error" in result
+    assert "status" in result
+    assert result["status"] == "not_found"
+    assert f"User with ID {non_existent_id} not found" in result["error"]
 
 # Test role change validation - valid change
 async def test_validate_role_change_valid(db_session, user, admin_user):
