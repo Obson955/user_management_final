@@ -97,7 +97,11 @@ class RoleService:
             }
             
             # Publish the role change event
-            EventService.publish(EventTypes.USER_ROLE_CHANGED, role_change_data)
+            try:
+                EventService.publish(EventTypes.USER_ROLE_CHANGED, role_change_data)
+            except Exception as e:
+                # Log a warning but don't fail the operation
+                logger.warning(f"[RoleService] Failed to publish role change event: {e}, but role change was successful")
             
             # Return information about the role change
             return role_change_data
