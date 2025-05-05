@@ -3,23 +3,21 @@ from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.dependencies import get_current_user, get_db, require_role
 from app.models.user_model import UserRole
 from app.schemas.role_schemas import (
-    RoleChangeRequest, 
-    RoleChangeResponse, 
-    RoleHistoryEntry, 
-    RoleHistoryResponse,
-    AvailableRolesResponse
+    AvailableRolesResponse,
+    RoleChangeRequest,
+    RoleChangeResponse,
+    RoleHistoryEntry,
+    RoleHistoryResponse
 )
 from app.services.role_service import RoleService
-from app.services.user_service import UserService
-from app.dependencies.auth import require_role, get_current_user
-from app.dependencies.database import get_db
 from app.utils.link_generation import generate_pagination_links
 
 router = APIRouter(
     prefix="/roles",
-    tags=["roles"],
+    tags=["Role Management"],
     responses={404: {"description": "Not found"}},
 )
 
