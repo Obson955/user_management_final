@@ -1,6 +1,10 @@
 
-
 # The User Management System Final Project: Your Epic Coding Adventure Awaits! 🎉✨🔥
+
+## Project new feature RBAC Enhancements Links 
+
+- **GitHub Repository:** [Obson955/user_management_final](https://github.com/Obson955/user_management_final)
+- **Docker Hub:** [obson/user_management_final](https://hub.docker.com/repository/docker/obson/user_management_final/general)
 
 ## Introduction: Buckle Up for the Ride of a Lifetime 🚀🎬
 
