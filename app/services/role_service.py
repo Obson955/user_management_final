@@ -22,6 +22,27 @@ class RoleService:
     """
     
     @classmethod
+    def _parse_role(cls, role_value) -> Optional[UserRole]:
+        """
+        Parse a role value into a UserRole enum.
+        
+        Args:
+            role_value: The role value to parse, can be a string or UserRole enum
+            
+        Returns:
+            The parsed UserRole enum, or None if the role is invalid
+        """
+        try:
+            if isinstance(role_value, str):
+                return UserRole[role_value]
+            elif isinstance(role_value, UserRole):
+                return role_value
+            else:
+                return None
+        except (KeyError, ValueError):
+            return None
+    
+    @classmethod
     async def change_user_role(cls, 
                               session: AsyncSession, 
                               user_id: UUID, 
@@ -57,11 +78,11 @@ class RoleService:
                 return {"error": error_msg, "status": "not_found"}
                 
             # Check if the new role is valid
-            try:
-                new_role_enum = UserRole[new_role.name] if isinstance(new_role, UserRole) else UserRole[new_role]
-            except (KeyError, ValueError):
-                logger.error(f"Invalid role: {new_role}")
-                return None
+            new_role_enum = cls._parse_role(new_role)
+            if new_role_enum is None:
+                error_msg = f"Invalid role: {new_role}"
+                logger.error(f"[RoleService] {error_msg}")
+                return {"error": error_msg, "status": "invalid_role"}
                 
             # Record the previous role before changing it
             previous_role = user.role
@@ -209,9 +230,8 @@ class RoleService:
                 return False, f"User with ID {changed_by_id} not found"
                 
             # Check if the new role is valid
-            try:
-                new_role_enum = UserRole[new_role] if isinstance(new_role, str) else UserRole[new_role.name]
-            except (KeyError, ValueError):
+            new_role_enum = cls._parse_role(new_role)
+            if new_role_enum is None:
                 return False, f"Invalid role: {new_role}"
                 
             # Check if the user already has the requested role
