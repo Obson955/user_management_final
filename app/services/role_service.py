@@ -137,7 +137,7 @@ class RoleService:
                                      session: AsyncSession, 
                                      user_id: Optional[UUID] = None,
                                      skip: int = 0,
-                                     limit: int = 10) -> Tuple[List[RoleChangeHistory], int]:
+                                     limit: int = 10) -> Dict[str, Any]:
         """
         Get the role change history for a specific user or all users.
         
@@ -148,7 +148,7 @@ class RoleService:
             limit: Maximum number of records to return (for pagination)
             
         Returns:
-            A tuple containing a list of role change history records and the total count
+            A dictionary containing records, total count, and pagination metadata
         """
         try:
             # Build the query with optimized performance
@@ -180,11 +180,22 @@ class RoleService:
             history_records = result.scalars().all()
             total_count = count_result.scalar()
             
-            return history_records, total_count
+            # Return a dictionary with records and pagination metadata
+            return {
+                "records": history_records,
+                "total": total_count,
+                "limit": limit,
+                "skip": skip
+            }
             
         except Exception as e:
             logger.error(f"[RoleService] Error getting role change history: {e}, user_id={user_id if 'user_id' in locals() else 'N/A'}, skip={skip}, limit={limit}")
-            return [], 0
+            return {
+                "records": [],
+                "total": 0,
+                "limit": limit,
+                "skip": skip
+            }
     
     @classmethod
     async def get_available_roles(cls) -> List[str]:

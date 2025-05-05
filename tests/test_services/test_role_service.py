@@ -180,15 +180,15 @@ async def test_get_role_change_history(db_session, user, admin_user):
     )
     
     # Get the history
-    history_records, total_count = await RoleService.get_role_change_history(
+    history_data = await RoleService.get_role_change_history(
         db_session,
         user.id
     )
     
-    assert total_count >= 1
-    assert len(history_records) >= 1
+    assert history_data["total"] >= 1
+    assert len(history_data["records"]) >= 1
     
-    latest_record = history_records[0]
+    latest_record = history_data["records"][0]
     assert latest_record.user_id == user.id
     assert latest_record.changed_by_id == admin_user.id
     assert latest_record.new_role == UserRole.MANAGER.name

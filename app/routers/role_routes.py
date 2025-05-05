@@ -1,37 +1,38 @@
-from builtins import dict, str
+from builtins import dict, int, str
+from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.dependencies import get_current_user, get_db, require_role
 from app.models.user_model import UserRole
 from app.schemas.role_schemas import (
-    AvailableRolesResponse,
-    RoleChangeRequest,
-    RoleChangeResponse,
-    RoleHistoryEntry,
-    RoleHistoryResponse
+    RoleChangeRequest, 
+    RoleChangeResponse, 
+    RoleHistoryEntry, 
+    RoleHistoryResponse,
+    AvailableRolesResponse
 )
 from app.services.role_service import RoleService
+from app.services.user_service import UserService
+from app.dependencies.auth import require_role, get_current_user
+from app.dependencies.database import get_db
 from app.utils.link_generation import generate_pagination_links
 
 router = APIRouter(
     prefix="/roles",
-    tags=["Role Management"],
+    tags=["roles"],
     responses={404: {"description": "Not found"}},
 )
 
 @router.get("/available", response_model=AvailableRolesResponse, name="get_available_roles")
-async def get_available_roles(
-    current_user: dict = Depends(require_role(["ADMIN"]))
-):
+async def get_available_roles(current_user: dict = Depends(require_role(["ADMIN"]))):
     """
     Get a list of all available roles in the system.
     
-    This endpoint returns all possible roles that can be assigned to users.
+    This endpoint returns a list of all roles that can be assigned to users.
     Only administrators can access this endpoint.
     
     Returns:
-        AvailableRolesResponse: A list of role names
+        AvailableRolesResponse: A list of available roles
     """
     roles = await RoleService.get_available_roles()
     return AvailableRolesResponse(roles=roles)
@@ -47,39 +48,38 @@ async def change_user_role(
     Change a user's role.
     
     This endpoint allows administrators to change a user's role.
-    The role change is recorded in the role change history.
+    Only administrators can access this endpoint.
     
     Args:
-        user_id: The ID of the user whose role is being changed
-        role_change: The role change request containing the new role and optional reason
+        user_id: ID of the user whose role is being changed
+        role_change: The new role and reason for the change
         
     Returns:
         RoleChangeResponse: Information about the role change
     """
-    # Validate the role change
-    is_valid, message = await RoleService.validate_role_change(
-        db,
-        user_id,
-        role_change.new_role,
-        UUID(current_user["user_id"])
-    )
+    # Get the current user's ID from the token
+    admin_id = UUID(current_user["user_id"])
     
-    if not is_valid:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
-    
-    # Perform the role change
+    # Change the user's role
     result = await RoleService.change_user_role(
         db,
         user_id,
         role_change.new_role,
-        UUID(current_user["user_id"]),
+        admin_id,
         role_change.reason
     )
     
     if not result:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to change user role"
+        )
+    
+    if "error" in result:
+        status_code = status.HTTP_404_NOT_FOUND if result.get("status") == "not_found" else status.HTTP_400_BAD_REQUEST
+        raise HTTPException(
+            status_code=status_code,
+            detail=result["error"]
         )
     
     return RoleChangeResponse(**result)
@@ -107,7 +107,7 @@ async def get_role_change_history(
     Returns:
         RoleHistoryResponse: A list of role change history records
     """
-    history_records, total_count = await RoleService.get_role_change_history(
+    history_data = await RoleService.get_role_change_history(
         db,
         user_id,
         skip,
@@ -115,14 +115,14 @@ async def get_role_change_history(
     )
     
     # Generate pagination links
-    pagination_links = generate_pagination_links(request, skip, limit, total_count)
+    pagination_links = generate_pagination_links(request, skip, limit, history_data["total"])
     
     # Convert the history records to the response model
-    items = [RoleHistoryEntry.model_validate(record) for record in history_records]
+    items = [RoleHistoryEntry.model_validate(record) for record in history_data["records"]]
     
     return RoleHistoryResponse(
         items=items,
-        total=total_count,
+        total=history_data["total"],
         links=pagination_links
     )
 
@@ -149,7 +149,7 @@ async def get_user_role_change_history(
     Returns:
         RoleHistoryResponse: A list of role change history records for the specified user
     """
-    history_records, total_count = await RoleService.get_role_change_history(
+    history_data = await RoleService.get_role_change_history(
         db,
         user_id,
         skip,
@@ -157,13 +157,13 @@ async def get_user_role_change_history(
     )
     
     # Generate pagination links
-    pagination_links = generate_pagination_links(request, skip, limit, total_count)
+    pagination_links = generate_pagination_links(request, skip, limit, history_data["total"])
     
     # Convert the history records to the response model
-    items = [RoleHistoryEntry.model_validate(record) for record in history_records]
+    items = [RoleHistoryEntry.model_validate(record) for record in history_data["records"]]
     
     return RoleHistoryResponse(
         items=items,
-        total=total_count,
+        total=history_data["total"],
         links=pagination_links
     )
